@@ -1,0 +1,196 @@
+CREATE TABLE setexam.Employees (
+    employee_id INT PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    hire_date DATE,
+    salary DECIMAL(18, 2)
+);
+
+CREATE TABLE setexam.Departments (
+    department_id INT PRIMARY KEY,
+    department_name VARCHAR(100)
+);
+
+CREATE TABLE setexam.Projects (
+    project_id INT PRIMARY KEY,
+    project_name VARCHAR(100),
+    department_id INT,
+    FOREIGN KEY (department_id) REFERENCES Departments(department_id)
+);
+
+CREATE TABLE setexam.EmployeeProjects (
+    employee_id INT,
+    project_id INT,
+    hours_worked INT,
+    FOREIGN KEY (employee_id) REFERENCES Employees(employee_id),
+    FOREIGN KEY (project_id) REFERENCES Projects(project_id),
+    PRIMARY KEY (employee_id, project_id)
+);
+
+-- Insert data into Departments table
+INSERT INTO setexam.Departments (department_id, department_name) VALUES
+(1, 'IT'),
+(2, 'HR'),
+(3, 'Finance');
+
+-- Insert data into Employees table
+INSERT INTO setexam.Employees (employee_id, first_name, last_name, hire_date, salary) VALUES
+(1, 'John', 'Doe', '2020-01-15', 70000.00),
+(2, 'Jane', 'Smith', '2019-03-10', 80000.00),
+(3, 'Emily', 'Johnson', '2021-06-30', 90000.00),
+(4, 'Michael', 'Brown', '2018-11-25', 95000.00),
+(5, 'Jessica', 'Davis', '2017-07-23', 75000.00);
+
+-- Insert data into Projects table
+INSERT INTO setexam.Projects (project_id, project_name, department_id) VALUES
+(1, 'Project Alpha', 1),
+(2, 'Project Beta', 2),
+(3, 'Project Gamma', 1),
+(4, 'Project Delta', 3);
+
+-- Insert data into EmployeeProjects table
+INSERT INTO setexam.EmployeeProjects (employee_id, project_id, hours_worked) VALUES
+(1, 1, 40),
+(2, 2, 50),
+(3, 3, 60),
+(4, 1, 70),
+(5, 4, 40);
+
+#task 1
+#1.1 Retrieve all columns for all employees: 
+SELECT * FROM setexam.Employees;
+
+
+SELECT e.first_name, e.last_name
+FROM setexam.Employees e
+JOIN setexam.EmployeeProjects ep ON e.employee_id = ep.employee_id
+JOIN setexam.Projects p ON ep.project_id = p.project_id
+JOIN setexam.Departments d ON p.department_id = d.department_id
+WHERE d.department_name = 'Sales';
+
+
+
+#List the total number of employees in each department: 
+
+SELECT d.department_name, COUNT(DISTINCT e.employee_id) AS total_employees
+FROM setexam.Departments d
+LEFT JOIN setexam.Projects p ON d.department_id = p.department_id
+LEFT JOIN setexam.EmployeeProjects ep ON p.project_id = ep.project_id
+LEFT JOIN setexam.Employees e ON ep.employee_id = e.employee_id
+GROUP BY d.department_name;
+
+
+SELECT *
+FROM setexam.Employees
+WHERE salary = (SELECT MAX(salary) FROM setexam.Employees);
+
+
+#TASK 2
+#Average salary 
+SELECT d.department_name, AVG(e.salary) AS average_salary
+FROM setexam.Departments d
+LEFT JOIN setexam.Projects p ON d.department_id = p.department_id
+LEFT JOIN setexam.EmployeeProjects ep ON p.project_id = ep.project_id
+LEFT JOIN setexam.Employees e ON ep.employee_id = e.employee_id
+GROUP BY d.department_name;
+
+#Retrieve the names of employees who were hired in the year 2020.
+
+SELECT first_name, last_name
+FROM setexam.Employees
+WHERE YEAR(hire_date) = 2020;
+
+
+#List all employees who have not been assigned to any project.
+SELECT e.first_name, e.last_name
+FROM setexam.Employees e
+LEFT JOIN setexam.EmployeeProjects ep ON e.employee_id = ep.employee_id
+WHERE ep.project_id IS NULL;
+
+#TASK 3
+#Find the names of projects that involve employees from the 'IT' department.
+SELECT DISTINCT p.project_name
+FROM setexam.Projects p
+JOIN setexam.EmployeeProjects ep ON p.project_id = ep.project_id
+JOIN setexam.Employees e ON ep.employee_id = e.employee_id
+JOIN setexam.Departments d ON p.department_id = d.department_id
+WHERE d.department_name = 'IT';
+
+
+#Retrieve the list of employees who work on more than 2 projects.
+SELECT e.first_name, e.last_name
+FROM setexam.Employees e
+JOIN setexam.EmployeeProjects ep ON e.employee_id = ep.employee_id
+GROUP BY e.employee_id, e.first_name, e.last_name
+HAVING COUNT(ep.project_id) > 2;
+
+#Get the names and salaries of employees who earn more than the average salary of their department
+
+SELECT e.first_name, e.last_name, e.salary
+FROM setexam.Employees e
+JOIN (
+    SELECT d.department_id, AVG(e.salary) AS avg_salary
+    FROM setexam.Departments d
+    JOIN setexam.Projects p ON d.department_id = p.department_id
+    JOIN setexam.EmployeeProjects ep ON p.project_id = ep.project_id
+    JOIN setexam.Employees e ON ep.employee_id = e.employee_id
+    GROUP BY d.department_id
+) avg_salaries ON e.salary > avg_salaries.avg_salary
+JOIN setexam.Projects p ON e.employee_id = p.department_id
+WHERE p.department_id = avg_salaries.department_id;
+
+
+#TASK 4
+
+#List the names of employees and the total hours they worked on projects where the project name starts with 'A'
+SELECT e.first_name, e.last_name, SUM(ep.hours_worked) AS total_hours
+FROM setexam.Employees e
+JOIN setexam.EmployeeProjects ep ON e.employee_id = ep.employee_id
+JOIN setexam.Projects p ON ep.project_id = p.project_id
+WHERE p.project_name LIKE 'A%'
+GROUP BY e.employee_id, e.first_name, e.last_name;
+
+#Retrieve the names of employees who work on projects within their own department.
+SELECT DISTINCT e.first_name, e.last_name
+FROM setexam.Employees e
+JOIN setexam.EmployeeProjects ep ON e.employee_id = ep.employee_id
+JOIN setexam.Projects p ON ep.project_id = p.project_id
+JOIN setexam.Departments d ON p.department_id = d.department_id
+WHERE d.department_id = (
+    SELECT d2.department_id
+    FROM setexam.Departments d2
+    JOIN setexam.Projects p2 ON d2.department_id = p2.department_id
+    JOIN setexam.EmployeeProjects ep2 ON p2.project_id = ep2.project_id
+    WHERE ep2.employee_id = e.employee_id
+    LIMIT 1
+);
+
+#Get the highest, lowest, and average salary in the company.
+SELECT
+    MAX(salary) AS highest_salary,
+    MIN(salary) AS lowest_salary,
+    AVG(salary) AS average_salary
+FROM setexam.Employees;
+
+
+#TASK 5
+CREATE TABLE City (
+    ID INT PRIMARY KEY,
+    Name VARCHAR(50),
+    CountryCode VARCHAR(50),
+    District VARCHAR(50),
+    Population INT
+    );
+
+
+INSERT INTO City (ID, Name, CountryCode, District, Population) VALUES
+(1, 'Berlin', 'GER', 'Berlin', 3769000),
+(2, 'Munich', 'GER', 'Bavaria', 1472000),
+(3, 'Hamburg', 'GER', 'Hamburg', 1841000),
+(4, 'Paris', 'FRA', 'Île-de-France', 2148000),
+(5, 'Frankfurt', 'GER', 'Hesse', 753000);
+
+SELECT *
+FROM City
+WHERE CountryCode = 'GER';
+
